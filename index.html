@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Курс валюты</title>
+    <script src="js/chart.js"></script>
+    <script src="js/chartjs-plugin-zoom.min.js"></script>
+    <style>
+        canvas#chart {
+            width: 90% !important;
+            height: 100% !important;
+        }
+    </style>
+</head>
+<body>
+<canvas id="chart"></canvas>
+<script>
+    function getTitle(enumValue) {
+        const countryNames = {
+            TUR: 'Турция',
+            GEO: 'Грузия',
+            UZB: 'Узбекистан',
+            ARM: 'Армения',
+            TJK: 'Таджикистан',
+            KAZ: 'Казахстан',
+            MDA: 'Молдова',
+            VNM: 'Вьетнам',
+            SRB: 'Сербия',
+            KGZ: 'Киргизия',
+            AZE: 'Азербайджан',
+            CHN: 'Китай'
+        };
+
+        return countryNames[enumValue];
+    }
+
+    function generateTimes(startTime, endTime, numPoints) {
+        // Parse the start and end times into Date objects
+        const startDate = new Date(`1970-01-01T${startTime}Z`);
+        const endDate = new Date(`1970-01-01T${endTime}Z`);
+
+        // Calculate the duration of the timeframe in milliseconds
+        const duration = endDate.getTime() - startDate.getTime();
+
+        // Calculate the time interval between each point
+        const interval = duration / (numPoints - 1);
+
+        // Create an array of time strings, starting with the start time
+        const times = [startTime];
+
+        // Add each subsequent time to the array by incrementing the previous time by the interval
+        let currentTime = startDate;
+        for (let i = 1; i < numPoints; i++) {
+            currentTime = new Date(currentTime.getTime() + interval);
+            const timeString = currentTime.toISOString().substring(11, 19);
+            times.push(timeString);
+        }
+        return times;
+    }
+
+    function getValuesFromParam(paramName) {
+        const param = params.get(paramName);
+
+        let result = [];
+
+        if (param && param.trim() !== '') {
+            result = param.split(',');
+        }
+        return result;
+    }
+
+    // Get url params
+    const params = new URLSearchParams(window.location.search);
+    const country = params.get('country');
+    const intervalBegin = params.get('start');
+    const intervalEnd = params.get('end');
+    try {
+        if (!country || country.trim() === '') {
+            throw new Error('Country is missing or empty.');
+        }
+
+        if (!intervalBegin || intervalBegin.trim() === '') {
+            throw new Error('Interval start date is missing or empty.');
+        }
+
+        if (!intervalEnd || intervalEnd.trim() === '') {
+            throw new Error('Interval end date is missing or empty.');
+        }
+
+        // Now you can continue with the rest of your code knowing that all mandatory data is present.
+    } catch (error) {
+        console.error(error);
+        // Display a user-friendly error message to the user.
+        alert('Что-то пошло не так. Пожалуйста, попробуйте сгенерировать график снова.');
+    }
+    // Get exchange rate data
+    const binanceRaif = getValuesFromParam('b_raif');
+    const binanceRosbank = getValuesFromParam('b_ros');
+    const binanceTinkoff = getValuesFromParam('b_tink');
+    const garantex = getValuesFromParam('g');
+    const unistream = getValuesFromParam('u');
+    const coronaPay = getValuesFromParam('cor');
+    const contactPay = getValuesFromParam('con');
+
+    const chartsDataArray = [binanceRaif, binanceRosbank, binanceTinkoff, garantex, unistream, coronaPay, contactPay];
+
+    const maxSizeOfChartDataArray = chartsDataArray.reduce((acc, curr) => {
+        if (curr.length > acc) {
+            return curr.length;
+        } else {
+            return acc;
+        }
+    }, 0);
+
+    // Generate timeline
+    const labels = generateTimes(intervalBegin, intervalEnd, maxSizeOfChartDataArray);
+    // Create canvas for chart
+    const ctx = document.getElementById('chart').getContext('2d');
+
+    // Create chart object
+    function createDataSet(label, data, borderColor) {
+        if (!data || data.length < 1) {
+            return null;
+        }
+        return {
+            label: label,
+            data: data,
+            borderColor: borderColor,
+            borderWidth: 2,
+            fill: false
+        };
+    }
+
+    const datasets = [
+        createDataSet('Золотая корона', coronaPay, 'rgb(29,70,234)'),
+        createDataSet('Unistream', unistream, 'rgb(255, 99, 132)'),
+        createDataSet('Contact', contactPay, 'rgb(45, 105, 0)'),
+        createDataSet('Binance Tinkoff', binanceTinkoff, 'rgb(255, 206, 0)'),
+        createDataSet('Binance Rosbank', binanceRosbank, 'rgb(128, 0, 128)'),
+        createDataSet('Binance Raiffeisen', binanceRaif, 'rgb(0, 128, 128)'),
+        createDataSet('Garantex', garantex, 'rgb(255, 0, 255)')]
+            .filter(dataset => dataset);
+
+    const chart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: datasets
+        },
+        options: {
+            responsive: true,
+            scales: {
+                yAxes: [{
+                    ticks: {
+                        beginAtZero: true
+                    }
+                }]
+            },
+            plugins: {
+                zoom: {
+                    zoom: {
+                        wheel: {
+                            enabled: true,
+                        },
+                        pinch: {
+                            enabled: false
+                        },
+                        mode: 'x',
+                    }
+                },
+                title: {
+                    display: true,
+                    text: getTitle(country),
+                }
+            }
+        }
+    });
+</script>
+</body>
+</html>
